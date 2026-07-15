@@ -23,9 +23,11 @@ Chatworkの **マイプロフィール → API Token** から個人用APIトー�
 3. ローカル環境で(CI上では実行しないこと):
    ```bash
    pip install google-auth-oauthlib
-   python scripts/get_refresh_token.py <client_id> <client_secret>
+   export GOOGLE_CLIENT_ID=...
+   export GOOGLE_CLIENT_SECRET=...
+   python scripts/get_refresh_token.py
    ```
-   ブラウザが開いて同意画面が表示され、完了すると `refresh_token` が出力されます。
+   環境変数を設定しない場合は対話的に入力を求められます(`client_secret` はシェル履歴に残らないよう非表示入力になります)。ブラウザが開いて同意画面が表示され、完了すると `refresh_token` が出力されます。
 
 #### 3. GitHub Secretsの登録
 
@@ -85,8 +87,12 @@ Get your personal API token from Chatwork: **My profile → API token**.
 3. Locally (not in CI):
    ```bash
    pip install google-auth-oauthlib
-   python scripts/get_refresh_token.py <client_id> <client_secret>
+   export GOOGLE_CLIENT_ID=...
+   export GOOGLE_CLIENT_SECRET=...
+   python scripts/get_refresh_token.py
    ```
+   If the env vars aren't set, you'll be prompted interactively instead
+   (`client_secret` input is hidden so it never lands in shell history).
    This opens a browser for consent and prints a `refresh_token`.
 
 #### 3. Register GitHub secrets

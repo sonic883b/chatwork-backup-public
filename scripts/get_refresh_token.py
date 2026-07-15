@@ -2,13 +2,19 @@
 
 Usage:
     pip install google-auth-oauthlib
-    python scripts/get_refresh_token.py <client_id> <client_secret>
+    GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... python scripts/get_refresh_token.py
+    # or, if the env vars aren't set, you'll be prompted interactively.
 
 Opens a browser for consent, then prints the refresh_token to store as the
 GOOGLE_REFRESH_TOKEN GitHub secret. The client_id/client_secret come from a
 Google Cloud OAuth client of type "Desktop app".
+
+client_secret is deliberately not accepted as a CLI argument, since that
+would leave it recoverable in shell history and process listings.
 """
+import os
 import sys
+from getpass import getpass
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -16,10 +22,8 @@ SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} <client_id> <client_secret>", file=sys.stderr)
-        raise SystemExit(1)
-    client_id, client_secret = sys.argv[1], sys.argv[2]
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or input("Google OAuth client_id: ").strip()
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or getpass("Google OAuth client_secret: ")
 
     client_config = {
         "installed": {

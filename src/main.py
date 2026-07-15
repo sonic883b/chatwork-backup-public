@@ -55,10 +55,11 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     last_message_id = int(room_state.get("last_message_id", 0))
     messages = cw.list_messages(room_id, force=True)
     new_messages = [m for m in messages if int(m["message_id"]) > last_message_id]
-    if len(messages) >= 100 and last_message_id:
+    if len(messages) >= 100:
         print(
             f"  [{room_id}] WARNING: API returned the max 100 messages; "
-            "older unseen messages may have been skipped. Run backups more often.",
+            "older unseen messages may have been skipped (including on this "
+            "first run, if the room has more history than that). Run backups more often.",
             file=sys.stderr,
         )
     if new_messages:
@@ -74,10 +75,11 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     # 100 files are visible per run.
     downloaded = set(room_state.get("downloaded_file_ids", []))
     files = cw.list_files(room_id)
-    if len(files) >= 100 and downloaded:
+    if len(files) >= 100:
         print(
             f"  [{room_id}] WARNING: API returned the max 100 files; "
-            "older unseen files may have been skipped. Run backups more often.",
+            "older unseen files may have been skipped (including on this "
+            "first run, if the room has more files than that). Run backups more often.",
             file=sys.stderr,
         )
     new_downloads = []
