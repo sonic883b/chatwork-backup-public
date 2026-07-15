@@ -12,7 +12,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from chatwork_client import ChatworkClient
@@ -20,11 +20,22 @@ from gdrive_client import GDriveClient
 
 STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "state.json"
 ROOT_FOLDER_NAME = os.environ.get("GDRIVE_ROOT_FOLDER_NAME", "ChatworkBackup")
+JST = timezone(timedelta(hours=9))
 
 
 def sanitize(name: str) -> str:
     name = name.strip() or "unnamed"
     return re.sub(r"[\\/:*?\"<>|]", "_", name)[:100]
+
+
+def render_transcript(messages: list[dict]) -> str:
+    """Renders messages as a human-readable "name: body (time)" transcript."""
+    lines = []
+    for m in sorted(messages, key=lambda m: int(m["message_id"])):
+        ts = datetime.fromtimestamp(m["send_time"], tz=JST).strftime("%Y-%m-%d %H:%M:%S JST")
+        name = m.get("account", {}).get("name", "unknown")
+        lines.append(f"[{ts}] {name}: {m['body']}")
+    return "\n".join(lines)
 
 
 def load_state() -> dict:
@@ -67,6 +78,7 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         payload = json.dumps(new_messages, ensure_ascii=False, indent=2).encode("utf-8")
         gd.upload_bytes(f"messages_{ts}.json", payload, messages_folder_id, "application/json")
+        gd.upload_text_as_doc(f"messages_{ts}", render_transcript(new_messages), messages_folder_id)
         room_state["last_message_id"] = str(max(int(m["message_id"]) for m in new_messages))
         print(f"  [{room_id}] +{len(new_messages)} messages")
 

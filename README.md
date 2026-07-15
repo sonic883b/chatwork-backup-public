@@ -8,6 +8,10 @@
 
 Chatworkのメッセージ・ファイルを定期的にGoogle Driveへバックアップします。1対1のDM(Chatwork APIでは `type: "direct"` のルームとして扱われる)も含めて、アクセス可能な全ルームが対象です。GitHub Actionsのスケジュール実行(`.github/workflows/backup.yml`、デフォルトは毎日07:00 JST)で動きます。
 
+メッセージは各ルームの `messages/` フォルダに、実行ごとに以下の2形式で保存されます。
+- `messages_<timestamp>.json` — 元データのJSON(再処理・検索向け)
+- `messages_<timestamp>`(Google Doc) — `[日時] 名前: 本文` 形式の読みやすいテキスト(閲覧向け)
+
 セキュリティ設計については `SECURITY.md` を参照してください(メッセージ本文はこのリポジトリに一切コミットされず、実データはGoogle Driveにのみ保存されます)。
 
 ### セットアップ
@@ -68,6 +72,10 @@ Periodically backs up Chatwork messages and files — including 1-on-1 DMs,
 which the Chatwork API exposes as rooms with `type: "direct"` — to Google
 Drive via a scheduled GitHub Actions workflow (see
 `.github/workflows/backup.yml`, default: daily 07:00 JST).
+
+Each run writes two message formats into each room's `messages/` folder:
+- `messages_<timestamp>.json` — raw data, for reprocessing/search
+- `messages_<timestamp>` (Google Doc) — a human-readable `[time] name: body` transcript
 
 See `SECURITY.md` for the security model (no message content is ever
 committed to this repo; only Google Drive holds actual content).

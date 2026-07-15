@@ -60,6 +60,13 @@ class GDriveClient:
         result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
+    def upload_text_as_doc(self, name: str, text: str, parent_id: str) -> str:
+        """Uploads plain text and has Drive convert it into a native Google Doc."""
+        media = MediaIoBaseUpload(io.BytesIO(text.encode("utf-8")), mimetype="text/plain", resumable=False)
+        metadata = {"name": name, "parents": [parent_id], "mimeType": "application/vnd.google-apps.document"}
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        return result["id"]
+
 
 def _escape(value: str) -> str:
     return value.replace("'", "\\'")
