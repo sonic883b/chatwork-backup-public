@@ -1,8 +1,14 @@
 """Google Drive client using OAuth2 (drive.file scope only).
 
-drive.file scope limits the app to files/folders it creates itself, which is
-the minimum privilege needed here and keeps a leaked token from exposing the
-user's entire Drive.
+The drive.file scope permits access to files the app creates *and* to
+existing files a user explicitly opens with the app via the Picker API;
+this client never uses the Picker, so in practice it only ever touches
+files/folders it created itself, which keeps a leaked token from exposing
+the user's whole Drive.
+
+Every API call uses num_retries=3 so transient 429/5xx responses are
+retried with the client library's built-in exponential backoff instead of
+aborting the whole backup run.
 """
 from __future__ import annotations
 
@@ -40,7 +46,7 @@ class GDriveClient:
         else:
             query += " and 'root' in parents"
 
-        result = self._service.files().list(q=query, spaces="drive", fields="files(id, name)").execute()
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id, name)").execute(num_retries=3)
         files = result.get("files", [])
         if files:
             folder_id = files[0]["id"]
@@ -48,7 +54,7 @@ class GDriveClient:
             metadata = {"name": name, "mimeType": FOLDER_MIME}
             if parent_id:
                 metadata["parents"] = [parent_id]
-            folder = self._service.files().create(body=metadata, fields="id").execute()
+            folder = self._service.files().create(body=metadata, fields="id").execute(num_retries=3)
             folder_id = folder["id"]
 
         self._folder_cache[cache_key] = folder_id
@@ -57,34 +63,34 @@ class GDriveClient:
     def upload_bytes(self, name: str, data: bytes, parent_id: str, mime_type: str = "application/octet-stream") -> str:
         media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=False)
         metadata = {"name": name, "parents": [parent_id]}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
         return result["id"]
 
     def upload_text_as_doc(self, name: str, text: str, parent_id: str) -> str:
         """Uploads plain text and has Drive convert it into a native Google Doc."""
         media = MediaIoBaseUpload(io.BytesIO(text.encode("utf-8")), mimetype="text/plain", resumable=False)
         metadata = {"name": name, "parents": [parent_id], "mimeType": "application/vnd.google-apps.document"}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
         return result["id"]
 
     def find_file(self, name: str, parent_id: str) -> str | None:
         query = f"name='{_escape(name)}' and '{parent_id}' in parents and trashed=false"
-        result = self._service.files().list(q=query, spaces="drive", fields="files(id, name)").execute()
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id, name)").execute(num_retries=3)
         files = result.get("files", [])
         return files[0]["id"] if files else None
 
     def download_bytes(self, file_id: str) -> bytes:
-        return self._service.files().get_media(fileId=file_id).execute()
+        return self._service.files().get_media(fileId=file_id).execute(num_retries=3)
 
     def upsert_bytes(self, name: str, data: bytes, parent_id: str, mime_type: str = "application/octet-stream") -> str:
         """Creates the file if it doesn't exist yet, otherwise overwrites its content in place."""
         media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=False)
         existing_id = self.find_file(name, parent_id)
         if existing_id:
-            self._service.files().update(fileId=existing_id, media_body=media).execute()
+            self._service.files().update(fileId=existing_id, media_body=media).execute(num_retries=3)
             return existing_id
         metadata = {"name": name, "parents": [parent_id]}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
         return result["id"]
 
 
