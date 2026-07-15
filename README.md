@@ -26,7 +26,7 @@ Chatworkの **マイプロフィール → API Token** から個人用APIトー�
 2. *APIs & Services → Credentials* で **デスクトップアプリ** 種別のOAuthクライアントを作成し、クライアントIDとクライアントシークレットを控えます。
 3. ローカル環境で(CI上では実行しないこと):
    ```bash
-   pip install google-auth-oauthlib
+   pip install -r requirements.txt
    export GOOGLE_CLIENT_ID=...
    export GOOGLE_CLIENT_SECRET=...
    python scripts/get_refresh_token.py
@@ -94,7 +94,7 @@ Get your personal API token from Chatwork: **My profile → API token**.
    *APIs & Services → Credentials*. Note the client ID and client secret.
 3. Locally (not in CI):
    ```bash
-   pip install google-auth-oauthlib
+   pip install -r requirements.txt
    export GOOGLE_CLIENT_ID=...
    export GOOGLE_CLIENT_SECRET=...
    python scripts/get_refresh_token.py
