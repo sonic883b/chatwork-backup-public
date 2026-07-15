@@ -1,8 +1,11 @@
 name: Chatwork backup to Google Drive
 
 on:
-  schedule:
-    - cron: "0 22 * * *"  # 07:00 JST daily
+  # This is the portfolio/template copy: the schedule trigger is disabled
+  # so it doesn't run (and fail on missing secrets) unattended. Uncomment
+  # it once real secrets are configured on this repo.
+  # schedule:
+  #   - cron: "0 22 * * *"  # 07:00 JST daily
   workflow_dispatch: {}
 
 # State lives on Google Drive (see src/main.py), not in this repo, so the

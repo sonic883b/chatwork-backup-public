@@ -1,4 +1,4 @@
-# chatwork-backup
+# chatwork-backup (portfolio / template)
 
 [日本語](#日本語) | [English](#english)
 
@@ -6,13 +6,18 @@
 
 ## 日本語
 
-Chatworkのメッセージ・ファイルを定期的にGoogle Driveへバックアップします。1対1のDM(Chatwork APIでは `type: "direct"` のルームとして扱われる)も含めて、アクセス可能な全ルームが対象です。GitHub Actionsのスケジュール実行(`.github/workflows/backup.yml`、デフォルトは毎日07:00 JST)で動きます。
+> **これはポートフォリオ/テンプレート用の公開リポジトリです。**
+> 実際の運用は別のprivateリポジトリで行っており、このrepoにはシークレット類は一切設定されていません(GitHub Actionsのスケジュール実行もコメントアウトして無効化済み)。コード自体はここに書いてある通り汎用的で、実データやルーム固有の情報は一切含みません。設計・実装の参考やフォークしてのセルフホストにどうぞ。
 
-メッセージは各ルームの `messages/` フォルダに、実行ごとに以下の2形式で保存されます。
-- `messages_<timestamp>.json` — 元データのJSON(再処理・検索向け)
-- `messages_<timestamp>`(Google Doc) — `[日時] 名前: 本文` 形式の読みやすいテキスト(閲覧向け)
+Chatworkのメッセージ・ファイルを定期的にGoogle Driveへバックアップする、GitHub Actions cron駆動のツールです。1対1のDM(Chatwork APIでは `type: "direct"` のルームとして扱われる)も含めて、アクセス可能な全ルームが対象です。
 
-このリポジトリはprivateでの運用を想定していますが、メッセージ本文はもちろん、どのルームが存在するか・いつ何件のやり取りがあったかといった**活動量のメタデータも一切このgitリポジトリやActionsログには残さない**設計にしています(将来の公開範囲変更やコラボレーター追加といった設定ミスに備えた多層防御)。差分管理用の状態(`state.json`)もGoogle Drive側にのみ保存し、実行ログはルームを特定できない集計値のみを出力します。詳細は `SECURITY.md` を参照してください。
+**設計上のポイント**
+- メッセージは各ルームの `messages/` フォルダに、実行ごとに2形式(JSON生データ + 読みやすいGoogle Docトランスクリプト)で保存
+- 差分管理用の状態(`state.json`)はgitではなくGoogle Drive側に保存し、リポジトリの公開範囲に関わらず「どのルームが存在するか」「いつ何件動いたか」がgit履歴やCIログに残らない設計(詳細は `SECURITY.md`)
+- Google Driveへのアクセスは `drive.file` スコープのみ(アプリが作成したファイル/フォルダにしか触れない、最小権限のOAuth設計)
+- Chatwork APIの制約(メッセージ・ファイルとも最新100件までしか取得できずページングなし)を踏まえた欠落検知ロジック
+
+自分で使う場合は、このrepoをフォークまたはテンプレートとして、以下のセットアップ手順に沿ってGitHub Secretsを設定し、`.github/workflows/backup.yml` の `schedule:` のコメントアウトを外してください。
 
 ### セットアップ
 
@@ -68,21 +73,31 @@ Chatwork APIの仕様上、メッセージ・ファイルとも1回のリクエ�
 
 ## English
 
+> **This is a public portfolio/template copy.** The live deployment runs
+> in a separate private repository with no secrets here, and the
+> scheduled trigger below is commented out so nothing runs unattended.
+> The code itself is fully generic and contains no real data or
+> room-specific information — feel free to read it, fork it, or
+> self-host it.
+
 Periodically backs up Chatwork messages and files — including 1-on-1 DMs,
 which the Chatwork API exposes as rooms with `type: "direct"` — to Google
-Drive via a scheduled GitHub Actions workflow (see
-`.github/workflows/backup.yml`, default: daily 07:00 JST).
+Drive via a GitHub Actions cron workflow (see `.github/workflows/backup.yml`).
 
-Each run writes two message formats into each room's `messages/` folder:
-- `messages_<timestamp>.json` — raw data, for reprocessing/search
-- `messages_<timestamp>` (Google Doc) — a human-readable `[time] name: body` transcript
+**Design highlights**
+- Two message formats per run in each room's `messages/` folder: raw JSON
+  and a human-readable Google Doc transcript
+- Incremental state (`state.json`) lives on Google Drive, not git, so
+  which rooms exist and how much traffic they see never touches this
+  repo's history or CI logs, regardless of repo visibility (see `SECURITY.md`)
+- Minimal-privilege Google OAuth: `drive.file` scope only (app-created
+  files/folders, not the user's whole Drive)
+- Handles the Chatwork API's hard 100-item cap (no pagination) on both
+  the messages and files endpoints, with gap detection
 
-This repo is meant to be run as **private**. Even so, no message content,
-room identity, or activity metadata (which rooms exist, how much traffic
-they see) is ever written to git or the Actions log — defense in depth
-against future visibility/collaborator misconfiguration. Incremental state
-(`state.json`) lives on Google Drive only, and the run log prints only
-totals with no per-room breakdown. See `SECURITY.md` for details.
+To actually run this, fork or use as a template, set up the GitHub
+secrets below, and uncomment the `schedule:` block in
+`.github/workflows/backup.yml`.
 
 ### Setup
 
