@@ -1,5 +1,23 @@
 # Security notes
 
+[日本語](#日本語) | [English](#english)
+
+---
+
+## 日本語
+
+このリポジトリはpublicであるため、シークレットとメッセージ本文をgit履歴に一切残さない設計にしています。
+
+- **Chatworkの内容はこのリポジトリに含まれません。** メッセージ・ファイルは直接Google Driveへアップロードされ、CIがコミットバックするのは `data/state.json`(メッセージ/ファイルIDのみで本文なし)だけです。
+- **Driveの権限は最小限。** `drive.file` スコープを使用しており、アプリ自身が作成したファイル/フォルダにしかアクセスできません(ユーザーのDrive全体にはアクセスできません)。トークンが漏洩しても無関係なファイルは読めません。
+- **認証情報はGitHub Actions Secretsにのみ存在します。** コードや設定ファイルには一切含めません: `CHATWORK_API_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`。
+- **`scripts/get_refresh_token.py` はローカル専用ツールです。** ブラウザでの対話的なOAuth同意フローを実行するため、CI上では絶対に実行しないでください。
+- ChatworkのAPIトークンやGoogleのrefresh tokenが万一漏洩した場合は、直ちにローテーションしてください(Chatwork: アカウント設定でトークンを再発行 / Google: https://myaccount.google.com/permissions でアクセスを取り消してから `get_refresh_token.py` を再実行)。
+
+---
+
+## English
+
 This repository is public, so the design deliberately keeps secrets and
 message content out of git history entirely.
 

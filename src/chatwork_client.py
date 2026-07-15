@@ -36,20 +36,14 @@ class ChatworkClient:
         result = self._get(f"/rooms/{room_id}/messages", params=params)
         return result or []
 
-    def list_files(self, room_id: int, offset: int = 0) -> list[dict]:
-        params = {"account_id": "", "offset": offset}
-        return self._get(f"/rooms/{room_id}/files", params=params) or []
+    def list_files(self, room_id: int) -> list[dict]:
+        """Returns up to the latest 100 files in the room.
 
-    def iter_all_files(self, room_id: int):
-        offset = 0
-        while True:
-            batch = self.list_files(room_id, offset=offset)
-            if not batch:
-                return
-            yield from batch
-            if len(batch) < 100:
-                return
-            offset += len(batch)
+        The Chatwork API's /files endpoint only accepts an optional
+        account_id filter — there is no offset/page parameter, so results
+        beyond the newest 100 are not retrievable via this endpoint.
+        """
+        return self._get(f"/rooms/{room_id}/files") or []
 
     def get_file_download_url(self, room_id: int, file_id: int) -> str:
         result = self._get(f"/rooms/{room_id}/files/{file_id}", params={"create_download_url": 1})

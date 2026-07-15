@@ -48,9 +48,19 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     folder_id = gd.get_or_create_folder(room_folder_name(room), parent_id=root_id)
 
     # --- messages ---
+    # The Chatwork API only exposes the latest 100 messages per room, with
+    # no way to page further back. If more than 100 arrive between two
+    # backup runs, the excess older ones are unrecoverable via this API -
+    # warn loudly rather than silently advancing past them.
     last_message_id = int(room_state.get("last_message_id", 0))
     messages = cw.list_messages(room_id, force=True)
     new_messages = [m for m in messages if int(m["message_id"]) > last_message_id]
+    if len(messages) >= 100 and last_message_id:
+        print(
+            f"  [{room_id}] WARNING: API returned the max 100 messages; "
+            "older unseen messages may have been skipped. Run backups more often.",
+            file=sys.stderr,
+        )
     if new_messages:
         messages_folder_id = gd.get_or_create_folder("messages", parent_id=folder_id)
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -60,9 +70,18 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
         print(f"  [{room_id}] +{len(new_messages)} messages")
 
     # --- files ---
+    # Same caveat as messages: /files has no pagination, so only the latest
+    # 100 files are visible per run.
     downloaded = set(room_state.get("downloaded_file_ids", []))
+    files = cw.list_files(room_id)
+    if len(files) >= 100 and downloaded:
+        print(
+            f"  [{room_id}] WARNING: API returned the max 100 files; "
+            "older unseen files may have been skipped. Run backups more often.",
+            file=sys.stderr,
+        )
     new_downloads = []
-    for f in cw.iter_all_files(room_id):
+    for f in files:
         file_id = str(f["file_id"])
         if file_id in downloaded:
             continue

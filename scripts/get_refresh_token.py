@@ -31,7 +31,15 @@ def main() -> None:
         }
     }
     flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-    creds = flow.run_local_server(port=0)
+    # access_type=offline + prompt=consent force Google to issue a
+    # refresh_token even if this client previously granted consent -
+    # without them a rerun can silently come back with refresh_token=None.
+    creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
+
+    if not creds.refresh_token:
+        print("\nNo refresh_token returned - revoke access at "
+              "https://myaccount.google.com/permissions and try again.", file=sys.stderr)
+        raise SystemExit(1)
 
     print("\nSave this as the GOOGLE_REFRESH_TOKEN secret:\n")
     print(creds.refresh_token)
