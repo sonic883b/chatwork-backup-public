@@ -12,7 +12,7 @@ Chatworkのメッセージ・ファイルを定期的にGoogle Driveへバック
 - `messages_<timestamp>.json` — 元データのJSON(再処理・検索向け)
 - `messages_<timestamp>`(Google Doc) — `[日時] 名前: 本文` 形式の読みやすいテキスト(閲覧向け)
 
-セキュリティ設計については `SECURITY.md` を参照してください(メッセージ本文はこのリポジトリに一切コミットされず、実データはGoogle Driveにのみ保存されます)。
+このリポジトリはprivateでの運用を想定していますが、メッセージ本文はもちろん、どのルームが存在するか・いつ何件のやり取りがあったかといった**活動量のメタデータも一切このgitリポジトリやActionsログには残さない**設計にしています(将来の公開範囲変更やコラボレーター追加といった設定ミスに備えた多層防御)。差分管理用の状態(`state.json`)もGoogle Drive側にのみ保存し、実行ログはルームを特定できない集計値のみを出力します。詳細は `SECURITY.md` を参照してください。
 
 ### セットアップ
 
@@ -77,8 +77,12 @@ Each run writes two message formats into each room's `messages/` folder:
 - `messages_<timestamp>.json` — raw data, for reprocessing/search
 - `messages_<timestamp>` (Google Doc) — a human-readable `[time] name: body` transcript
 
-See `SECURITY.md` for the security model (no message content is ever
-committed to this repo; only Google Drive holds actual content).
+This repo is meant to be run as **private**. Even so, no message content,
+room identity, or activity metadata (which rooms exist, how much traffic
+they see) is ever written to git or the Actions log — defense in depth
+against future visibility/collaborator misconfiguration. Incremental state
+(`state.json`) lives on Google Drive only, and the run log prints only
+totals with no per-room breakdown. See `SECURITY.md` for details.
 
 ### Setup
 

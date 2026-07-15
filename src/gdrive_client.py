@@ -67,6 +67,26 @@ class GDriveClient:
         result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
+    def find_file(self, name: str, parent_id: str) -> str | None:
+        query = f"name='{_escape(name)}' and '{parent_id}' in parents and trashed=false"
+        result = self._service.files().list(q=query, spaces="drive", fields="files(id, name)").execute()
+        files = result.get("files", [])
+        return files[0]["id"] if files else None
+
+    def download_bytes(self, file_id: str) -> bytes:
+        return self._service.files().get_media(fileId=file_id).execute()
+
+    def upsert_bytes(self, name: str, data: bytes, parent_id: str, mime_type: str = "application/octet-stream") -> str:
+        """Creates the file if it doesn't exist yet, otherwise overwrites its content in place."""
+        media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=False)
+        existing_id = self.find_file(name, parent_id)
+        if existing_id:
+            self._service.files().update(fileId=existing_id, media_body=media).execute()
+            return existing_id
+        metadata = {"name": name, "parents": [parent_id]}
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        return result["id"]
+
 
 def _escape(value: str) -> str:
     return value.replace("'", "\\'")
