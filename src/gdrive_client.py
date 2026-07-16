@@ -6,9 +6,13 @@ this client never uses the Picker, so in practice it only ever touches
 files/folders it created itself, which keeps a leaked token from exposing
 the user's whole Drive.
 
-Every API call uses num_retries=3 so transient 429/5xx responses are
+Read/update calls use num_retries=3 so transient 429/5xx responses are
 retried with the client library's built-in exponential backoff instead of
-aborting the whole backup run.
+aborting the whole backup run. files().create() calls deliberately do NOT
+use num_retries: create has no idempotency key, so if a create actually
+succeeds server-side but the response is lost, a library-level retry would
+silently create a duplicate file/folder. A failed create instead surfaces
+as an exception and is retried at the application level on the next run.
 """
 from __future__ import annotations
 
@@ -54,7 +58,7 @@ class GDriveClient:
             metadata = {"name": name, "mimeType": FOLDER_MIME}
             if parent_id:
                 metadata["parents"] = [parent_id]
-            folder = self._service.files().create(body=metadata, fields="id").execute(num_retries=3)
+            folder = self._service.files().create(body=metadata, fields="id").execute()
             folder_id = folder["id"]
 
         self._folder_cache[cache_key] = folder_id
@@ -63,14 +67,14 @@ class GDriveClient:
     def upload_bytes(self, name: str, data: bytes, parent_id: str, mime_type: str = "application/octet-stream") -> str:
         media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=False)
         metadata = {"name": name, "parents": [parent_id]}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
     def upload_text_as_doc(self, name: str, text: str, parent_id: str) -> str:
         """Uploads plain text and has Drive convert it into a native Google Doc."""
         media = MediaIoBaseUpload(io.BytesIO(text.encode("utf-8")), mimetype="text/plain", resumable=False)
         metadata = {"name": name, "parents": [parent_id], "mimeType": "application/vnd.google-apps.document"}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
     def find_file(self, name: str, parent_id: str) -> str | None:
@@ -90,7 +94,7 @@ class GDriveClient:
             self._service.files().update(fileId=existing_id, media_body=media).execute(num_retries=3)
             return existing_id
         metadata = {"name": name, "parents": [parent_id]}
-        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute(num_retries=3)
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
 

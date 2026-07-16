@@ -86,10 +86,18 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     if new_messages:
         try:
             messages_folder_id = gd.get_or_create_folder("messages", parent_id=folder_id)
-            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            payload = json.dumps(new_messages, ensure_ascii=False, indent=2).encode("utf-8")
-            gd.upload_bytes(f"messages_{ts}.json", payload, messages_folder_id, "application/json")
-            gd.upload_text_as_doc(f"messages_{ts}", render_transcript(new_messages), messages_folder_id)
+            # Named after the message-id range (not a timestamp) so a retry
+            # after a partial failure (e.g. JSON uploaded, Doc failed) finds
+            # the same artifact names and only fills in what's missing,
+            # instead of uploading a second, differently-timestamped copy.
+            ids = [int(m["message_id"]) for m in new_messages]
+            batch_id = f"{min(ids)}-{max(ids)}"
+            json_name, doc_name = f"messages_{batch_id}.json", f"messages_{batch_id}"
+            if not gd.find_file(json_name, messages_folder_id):
+                payload = json.dumps(new_messages, ensure_ascii=False, indent=2).encode("utf-8")
+                gd.upload_bytes(json_name, payload, messages_folder_id, "application/json")
+            if not gd.find_file(doc_name, messages_folder_id):
+                gd.upload_text_as_doc(doc_name, render_transcript(new_messages), messages_folder_id)
         except Exception as exc:  # noqa: BLE001 - keep backup running on single-room failure
             stats["message_errors"] = 1
             print(f"message upload failed: {type(exc).__name__}")

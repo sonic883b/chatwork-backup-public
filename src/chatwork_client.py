@@ -37,6 +37,8 @@ class ChatworkClient:
                 time.sleep(2**attempt)
                 continue
             if resp.status_code == 429:
+                if attempt == 4:
+                    break
                 time.sleep(_rate_limit_wait_seconds(resp.headers))
                 continue
             resp.raise_for_status()
