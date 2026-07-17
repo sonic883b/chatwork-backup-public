@@ -86,18 +86,21 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     if new_messages:
         try:
             messages_folder_id = gd.get_or_create_folder("messages", parent_id=folder_id)
-            # Named after the message-id range (not a timestamp) so a retry
-            # after a partial failure (e.g. JSON uploaded, Doc failed) finds
-            # the same artifact names and only fills in what's missing,
-            # instead of uploading a second, differently-timestamped copy.
+            # Named after only the lower bound of the batch (the first
+            # message past the still-unadvanced cursor), which stays the
+            # same across retries even if more messages arrive in the
+            # meantime - unlike a range that includes max(ids), which
+            # would shift and produce a second, differently-named
+            # duplicate. Upserting (not skip-if-exists) means a retry
+            # always overwrites with the current full batch, so any
+            # messages that arrived during a partial-failure retry are
+            # still captured under the same artifact names.
             ids = [int(m["message_id"]) for m in new_messages]
-            batch_id = f"{min(ids)}-{max(ids)}"
+            batch_id = str(min(ids))
             json_name, doc_name = f"messages_{batch_id}.json", f"messages_{batch_id}"
-            if not gd.find_file(json_name, messages_folder_id):
-                payload = json.dumps(new_messages, ensure_ascii=False, indent=2).encode("utf-8")
-                gd.upload_bytes(json_name, payload, messages_folder_id, "application/json")
-            if not gd.find_file(doc_name, messages_folder_id):
-                gd.upload_text_as_doc(doc_name, render_transcript(new_messages), messages_folder_id)
+            payload = json.dumps(new_messages, ensure_ascii=False, indent=2).encode("utf-8")
+            gd.upsert_bytes(json_name, payload, messages_folder_id, "application/json")
+            gd.upsert_text_as_doc(doc_name, render_transcript(new_messages), messages_folder_id)
         except Exception as exc:  # noqa: BLE001 - keep backup running on single-room failure
             stats["message_errors"] = 1
             print(f"message upload failed: {type(exc).__name__}")
@@ -117,6 +120,7 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
     files = cw.list_files(room_id)
     already_known = sum(1 for f in files if str(f["file_id"]) in downloaded)
     stats["file_cap_hit"] = len(files) >= 100 and already_known == 0
+    files_folder_id = None
     for f in files:
         file_id = str(f["file_id"])
         if file_id in downloaded:
@@ -124,14 +128,15 @@ def backup_room(cw: ChatworkClient, gd: GDriveClient, root_id: str, room: dict, 
         try:
             url = cw.get_file_download_url(room_id, f["file_id"])
             content = cw.download_file(url)
+            if files_folder_id is None:
+                files_folder_id = gd.get_or_create_folder("files", parent_id=folder_id)
+            gd.upload_bytes(f"{file_id}_{sanitize(f['filename'])}", content, files_folder_id)
         except Exception as exc:  # noqa: BLE001 - keep backup running on single-file failure
             # Only the exception type is logged: the message can embed the
             # file's signed download URL, which must not land in a public log.
             stats["file_errors"] += 1
             print(f"file download failed: {type(exc).__name__}")
             continue
-        files_folder_id = gd.get_or_create_folder("files", parent_id=folder_id)
-        gd.upload_bytes(f"{file_id}_{sanitize(f['filename'])}", content, files_folder_id)
         downloaded.add(file_id)
         room_state["downloaded_file_ids"] = sorted(downloaded)
         save_state(gd, root_id, state)

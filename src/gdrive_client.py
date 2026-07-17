@@ -97,6 +97,17 @@ class GDriveClient:
         result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
         return result["id"]
 
+    def upsert_text_as_doc(self, name: str, text: str, parent_id: str) -> str:
+        """Like upload_text_as_doc, but overwrites an existing same-named Doc instead of creating a second one."""
+        media = MediaIoBaseUpload(io.BytesIO(text.encode("utf-8")), mimetype="text/plain", resumable=False)
+        existing_id = self.find_file(name, parent_id)
+        if existing_id:
+            self._service.files().update(fileId=existing_id, media_body=media).execute(num_retries=3)
+            return existing_id
+        metadata = {"name": name, "parents": [parent_id], "mimeType": "application/vnd.google-apps.document"}
+        result = self._service.files().create(body=metadata, media_body=media, fields="id").execute()
+        return result["id"]
+
 
 def _escape(value: str) -> str:
     return value.replace("'", "\\'")
